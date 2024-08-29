@@ -14,6 +14,7 @@ patterns = {
 }
 PII_FIELDS = ("name", "email", "phone", "ssn", "password")
 
+
 def filter_datum(
         fields: List[str], redaction: str, message: str, separator: str
         ) -> str:
@@ -21,6 +22,7 @@ def filter_datum(
     """
     extract, replace = (patterns["extract"], patterns["replace"])
     return re.sub(extract(fields, separator), replace(redaction), message)
+
 
 def get_logger() -> logging.Logger:
     """Creates and configures a logger for user data.
@@ -33,6 +35,7 @@ def get_logger() -> logging.Logger:
     logger.addHandler(stream_handler)
     return logger
 
+
 def get_db() -> mysql.connector.connection.MySQLConnection:
     """Creates a connector to the database using environment variables.
     """
@@ -40,7 +43,7 @@ def get_db() -> mysql.connector.connection.MySQLConnection:
     db_name = os.getenv("PERSONAL_DATA_DB_NAME", "")
     db_user = os.getenv("PERSONAL_DATA_DB_USERNAME", "root")
     db_pwd = os.getenv("PERSONAL_DATA_DB_PASSWORD", "")
-    
+
     # Connect to the MySQL database
     connection = mysql.connector.connect(
         host=db_host,
@@ -50,15 +53,15 @@ def get_db() -> mysql.connector.connection.MySQLConnection:
     )
     return connection
 
+
 def main():
-    """Logs the information about user records in the users table.
-    """
+    """Logs the information about user records in the users table."""
     fields = "name,email,phone,ssn,password,ip,last_login,user_agent"
     columns = fields.split(',')
     query = "SELECT {} FROM users;".format(fields)
     info_logger = get_logger()
     connection = get_db()
-    
+
     with connection.cursor() as cursor:
         cursor.execute(query)
         rows = cursor.fetchall()
@@ -69,10 +72,19 @@ def main():
             )
             msg = '{};'.format('; '.join(record))
             # Create a LogRecord and handle it with the logger
-            log_record = logging.LogRecord("user_data", logging.INFO, None, None, msg, None, None)
+            log_record = logging.LogRecord(
+                name="user_data",
+                level=logging.INFO,
+                pathname=None,
+                lineno=None,
+                msg=msg,
+                args=None,
+                exc_info=None
+            )
             info_logger.handle(log_record)
-    
+
     connection.close()  # Ensure the connection is closed
+
 
 class RedactingFormatter(logging.Formatter):
     """Redacting Formatter class for hiding sensitive information in logs.
@@ -91,6 +103,7 @@ class RedactingFormatter(logging.Formatter):
         """
         msg = super().format(record)
         return filter_datum(self.fields, self.REDACTION, msg, self.SEPARATOR)
+
 
 if __name__ == "__main__":
     main()
